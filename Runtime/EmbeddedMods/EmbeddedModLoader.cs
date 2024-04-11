@@ -88,7 +88,7 @@ namespace Katas.UniMod
             if (_startup)
                 await _startup.StartAsync(mod);
             
-            await UniModUtility.RunStartupMethodsAsync(LoadedAssemblies, mod);
+            await UniModUtility.RunInitializeMethodsAsync(LoadedAssemblies, mod);
             
             IsLoaded = true;
         }

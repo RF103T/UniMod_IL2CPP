@@ -178,7 +178,7 @@ namespace Katas.UniMod
         /// Invokes all the methods with the ModStartupAttribute from the given assemblies. ModStartup methods returning a UniTask
         /// object will be executed concurrently.
         /// </summary>
-        public static UniTask RunStartupMethodsAsync(IEnumerable<Assembly> assemblies, IMod mod)
+        public static UniTask RunInitializeMethodsAsync(IEnumerable<Assembly> assemblies, IMod mod)
         {
             if (assemblies is null)
                 return UniTask.CompletedTask;
@@ -187,7 +187,7 @@ namespace Katas.UniMod
             IEnumerable<UniTask> tasks = assemblies
                 .SelectMany(assembly => assembly.GetTypes())
                 .SelectMany(type => type.GetMethods())
-                .Select(methodInfo => InvokeModStartupMethodAsync(methodInfo, mod));
+                .Select(methodInfo => InvokeModInitializeMethodAsync(methodInfo, mod));
             
             return UniTaskUtility.WhenAll(tasks);
         }
@@ -196,7 +196,7 @@ namespace Katas.UniMod
         /// If the provided method info instance is from a ModStartup method (has the ModStartupAttribute), it will invoke it with the correct parameters.
         /// The method can either return void or a UniTask object and it can receive no arguments or receive an IMod instance.
         /// </summary>
-        public static UniTask InvokeModStartupMethodAsync(MethodInfo methodInfo, IMod mod)
+        public static UniTask InvokeModInitializeMethodAsync(MethodInfo methodInfo, IMod mod)
         {
             if (methodInfo is null || !methodInfo.IsStatic || methodInfo.GetCustomAttributes(typeof(ModStartupAttribute), false).Length == 0)
                 return UniTask.CompletedTask;

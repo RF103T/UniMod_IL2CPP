@@ -102,7 +102,7 @@ namespace Katas.UniMod
 
             // run startup script and methods
             await UniModUtility.RunModStartupScriptAsync(mod);
-            await UniModUtility.RunStartupMethodsAsync(LoadedAssemblies, mod);
+            await UniModUtility.RunInitializeMethodsAsync(LoadedAssemblies, mod);
             
             IsLoaded = true;
         }
