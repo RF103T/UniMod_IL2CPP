@@ -20,12 +20,12 @@ namespace Katas.UniMod.Editor
     {
         public abstract bool SupportsBuildTarget(BuildTarget buildTarget);
         protected abstract UniTask<string> GetAssembliesFolderFromBuildAsync(BuildTarget buildTarget, string buildFolder);
-        
+
         public async UniTask BuildAssembliesAsync(IEnumerable<string> assemblyNames, CodeOptimization buildMode, BuildTarget buildTarget, string outputFolder)
         {
             if (!SupportsBuildTarget(buildTarget))
                 throw new Exception($"This assembly builder doesn't support the given build target: {buildTarget}");
-            
+
             // create a tmp folder for the build output
             string tmpFolder = IOUtils.CreateTmpFolder();
             string buildFolder = Path.Combine(tmpFolder, "build");
@@ -34,10 +34,10 @@ namespace Katas.UniMod.Editor
             try
             {
                 DoScriptsOnlyPlayerBuild(buildTarget, buildFolder, isDebugBuild);
-                
+
                 // get the platform specific folder where all managed assemblies were built
                 string assembliesFolder = await GetAssembliesFolderFromBuildAsync(buildTarget, buildFolder);
-                
+
                 // copy all the built assemblies to the output folder
                 await UniTaskUtility.WhenAll(
                     assemblyNames.Select(name =>
@@ -60,16 +60,16 @@ namespace Katas.UniMod.Editor
         private static void DoScriptsOnlyPlayerBuild(BuildTarget buildTarget, string outputFolder, bool developmentBuild)
         {
             BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
-            
+
             // IL2CPP scripting backend is not currently supported by UniMod
-            ScriptingImplementation scriptingBackend = PlayerSettings.GetScriptingBackend(targetGroup);
-            if (scriptingBackend is ScriptingImplementation.IL2CPP)
-                throw new Exception("The IL2CPP scripting backend is currently not supported by UniMod, please switch to the Mono backend in PlayerSettings and try again");
-            
+            // ScriptingImplementation scriptingBackend = PlayerSettings.GetScriptingBackend(targetGroup);
+            // if (scriptingBackend is ScriptingImplementation.IL2CPP)
+            //     throw new Exception("The IL2CPP scripting backend is currently not supported by UniMod, please switch to the Mono backend in PlayerSettings and try again");
+
             BuildOptions options = BuildOptions.BuildScriptsOnly | BuildOptions.CleanBuildCache;
             if (developmentBuild)
                 options |= BuildOptions.Development;
-            
+
             var buildPlayerOptions = new BuildPlayerOptions()
             {
                 scenes = Array.Empty<string>(),
@@ -81,7 +81,7 @@ namespace Katas.UniMod.Editor
                 options = options,
                 extraScriptingDefines = Array.Empty<string>(),
             };
-            
+
             BuildPipeline.BuildPlayer(buildPlayerOptions);
         }
     }

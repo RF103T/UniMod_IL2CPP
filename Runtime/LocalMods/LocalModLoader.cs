@@ -8,6 +8,8 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
 using UnityEngine.Networking;
 
+using AppDomain = ILRuntime.Runtime.Enviorment.AppDomain;
+
 namespace Katas.UniMod
 {
     /// <summary>
@@ -24,10 +26,12 @@ namespace Katas.UniMod
         public bool ContainsAssemblies { get; }
         public IResourceLocator ResourceLocator { get; private set; }
         public IReadOnlyList<Assembly> LoadedAssemblies { get; }
-        
+
         private readonly string _assembliesFolder;
         private readonly string _catalogPath;
         private readonly List<Assembly> _loadedAssemblies;
+
+        private AppDomain _gameAppDomain;
 
         private UniTaskCompletionSource _loadOperation;
         private UniTaskCompletionSource<Sprite> _thumbnailOperation;
@@ -38,13 +42,18 @@ namespace Katas.UniMod
             _assembliesFolder = Path.Combine(modFolder, UniModRuntime.AssembliesFolder);
             _catalogPath = Path.Combine(modFolder, UniModRuntime.AssetsFolder, UniModRuntime.AddressablesCatalogFileName);
             _loadedAssemblies = new List<Assembly>();
-            
+
             Info = info;
             Source = source;
             ContainsAssets = File.Exists(_catalogPath);
             ContainsAssemblies = Directory.Exists(_assembliesFolder);
             ResourceLocator = EmptyLocator.Instance;
             LoadedAssemblies = _loadedAssemblies.AsReadOnly();
+        }
+
+        public void SetGameAppDomain(AppDomain domain)
+        {
+            _gameAppDomain = domain;
         }
 
         public async UniTask LoadAsync(IMod mod)
@@ -54,7 +63,7 @@ namespace Katas.UniMod
                 await _loadOperation.Task;
                 return;
             }
-            
+
             _loadOperation = new UniTaskCompletionSource();
 
             try
@@ -73,7 +82,7 @@ namespace Katas.UniMod
         {
             if (_thumbnailOperation is not null)
                 return await _thumbnailOperation.Task;
-            
+
             _thumbnailOperation = new UniTaskCompletionSource<Sprite>();
 
             try
@@ -93,17 +102,25 @@ namespace Katas.UniMod
         {
             if (IsLoaded)
                 return;
-            
+
             if (ContainsAssemblies)
-                await UniModUtility.LoadAssembliesAsync(_assembliesFolder, _loadedAssemblies);
-            
+            {
+                if (_gameAppDomain == null)
+                {
+                    throw new Exception($"Failed to load the mod assemblies. Please use LocalModLoader.SetGameAppDomain to set AppDomain.");
+                }
+                await UniModUtility.LoadAssembliesAsync(_gameAppDomain, _assembliesFolder);
+            }
+
             if (ContainsAssets)
                 ResourceLocator = await Addressables.LoadContentCatalogAsync(_catalogPath, true);
 
+            await UniTask.WaitUntil(() => Input.GetKeyDown(KeyCode.Q));
+
             // run startup script and methods
             await UniModUtility.RunModStartupScriptAsync(mod);
-            await UniModUtility.RunStartupMethodsAsync(LoadedAssemblies, mod);
-            
+            UniModUtility.RunInitializeMethod(_gameAppDomain, mod);
+
             IsLoaded = true;
         }
 
@@ -112,7 +129,7 @@ namespace Katas.UniMod
             string path = Path.Combine(ModFolder, UniModRuntime.ThumbnailFile);
             if (!File.Exists(path))
                 return null;
-            
+
             using UnityWebRequest request = UnityWebRequestTexture.GetTexture(path);
             await request.SendWebRequest();
 
@@ -121,7 +138,7 @@ namespace Katas.UniMod
 
             Texture2D texture = DownloadHandlerTexture.GetContent(request);
             texture.filterMode = FilterMode.Bilinear;
-            
+
             return UniModUtility.CreateSpriteFromTexture(texture);
         }
     }

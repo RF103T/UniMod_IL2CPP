@@ -4,6 +4,8 @@ using System.IO;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 
+using AppDomain = ILRuntime.Runtime.Enviorment.AppDomain;
+
 namespace Katas.UniMod
 {
     /// <summary>
@@ -12,24 +14,28 @@ namespace Katas.UniMod
     public sealed class LocalModSource : IModSource
     {
         public const string SourceLabel = "Local";
-        
+
         public readonly string InstallationFolder;
-        
+
         private readonly HashSet<string> _modIds;
         private readonly Dictionary<string, LocalModLoader> _loaders;
 
-        public LocalModSource(string installationFolder)
+        private AppDomain _gameAppDomain;
+
+        public LocalModSource(AppDomain domain, string installationFolder)
         {
             InstallationFolder = installationFolder;
+            _gameAppDomain = domain;
+
             _modIds = new HashSet<string>();
             _loaders = new Dictionary<string, LocalModLoader>();
         }
-        
+
         public UniTask FetchAsync()
         {
             if (!Directory.Exists(InstallationFolder))
                 return UniTask.CompletedTask;
-            
+
             _modIds.Clear();
             string[] modFolders = Directory.GetDirectories(InstallationFolder);
 
@@ -47,7 +53,7 @@ namespace Katas.UniMod
         {
             foreach (string modId in _modIds)
                 results.Add(modId);
-            
+
             return UniTask.CompletedTask;
         }
 
@@ -57,13 +63,14 @@ namespace Katas.UniMod
                 throw new Exception("Null or empty mod ID");
             if (!_modIds.Contains(id))
                 throw new Exception($"Couldn't find loader for ID {id}");
-            
+
             if (_loaders.TryGetValue(id, out LocalModLoader loader))
                 return loader;
 
             try
             {
                 loader = await CreateLocalModAsync(id);
+                loader.SetGameAppDomain(_gameAppDomain);
                 _loaders[id] = loader;
                 return loader;
             }
@@ -80,11 +87,11 @@ namespace Katas.UniMod
         public async UniTask GetLoadersAsync(IEnumerable<string> ids, ICollection<IModLoader> results)
         {
             (IModLoader[] loaders, Exception exception) = await UniTaskUtility.WhenAllNoThrow(ids.Select(GetLoaderAsync));
-            
+
             foreach (IModLoader loader in loaders)
                 if (loader is not null)
                     results.Add(loader);
-            
+
             if (exception is not null)
                 throw exception;
         }
@@ -93,7 +100,7 @@ namespace Katas.UniMod
         {
             return GetLoadersAsync(_modIds, results);
         }
-        
+
         // Tries to create and return a LocalMod instance from the mod on the installation folder matching the given ID.
         // This method runs, returns and throws on a background thread.
         private async UniTask<LocalModLoader> CreateLocalModAsync(string modId)
@@ -101,9 +108,9 @@ namespace Katas.UniMod
             string modFolder = Path.Combine(InstallationFolder, modId);
             if (!Directory.Exists(modFolder))
                 throw new Exception($"Mod is not installed, directory not found: {modFolder}");
-            
+
             await UniTask.SwitchToThreadPool();
-            
+
             // check if the info file exists
             string infoPath = Path.Combine(modFolder, UniModRuntime.InfoFile);
             if (!File.Exists(infoPath))
@@ -114,7 +121,7 @@ namespace Katas.UniMod
                 // try to read and parse the info file
                 string json = await File.ReadAllTextAsync(infoPath);
                 var info = JsonConvert.DeserializeObject<ModInfo>(json);
-                
+
                 // instantiate and register the mod instance
                 return new LocalModLoader(modFolder, info, SourceLabel);
             }

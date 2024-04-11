@@ -10,9 +10,9 @@ namespace Katas.UniMod
     public sealed class EmbeddedModLoader : IModLoader
     {
         private static readonly IReadOnlyList<Assembly> EmptyAssemblies = new List<Assembly>(0).AsReadOnly();
-        
+
         public readonly EmbeddedModConfig Config;
-        
+
         public ModInfo Info { get; }
         public string Source { get; }
         public bool ContainsAssets { get; }
@@ -23,7 +23,7 @@ namespace Katas.UniMod
 
         private readonly ModStartup _startup;
         private readonly IReadOnlyList<Assembly> _loadedAssemblies;
-        
+
         private UniTaskCompletionSource _loadOperation;
         private Sprite _thumbnail;
 
@@ -32,7 +32,7 @@ namespace Katas.UniMod
             Config = config;
             _startup = config.startup;
             _loadedAssemblies = GetLoadedAssemblies(config).AsReadOnly();
-            
+
             Info = UniModUtility.CreateModInfoFromEmbeddedConfig(config);
             Source = source;
             ContainsAssets = config.ContainsAssets;
@@ -41,7 +41,7 @@ namespace Katas.UniMod
             ResourceLocator = EmptyLocator.Instance;
             LoadedAssemblies = EmptyAssemblies;
         }
-        
+
         public async UniTask LoadAsync(IMod mod)
         {
             if (_loadOperation != null)
@@ -49,7 +49,7 @@ namespace Katas.UniMod
                 await _loadOperation.Task;
                 return;
             }
-            
+
             _loadOperation = new UniTaskCompletionSource();
 
             try
@@ -68,28 +68,28 @@ namespace Katas.UniMod
         {
             if (!Config.thumbnail)
                 return UniTask.FromResult<Sprite>(null);
-            
+
             _thumbnail ??= UniModUtility.CreateSpriteFromTexture(Config.thumbnail);
             return UniTask.FromResult(_thumbnail);
         }
-        
+
         private async UniTask InternalLoadAsync(IMod mod)
         {
             if (IsLoaded)
                 return;
-            
+
             // to simulate how local mods are loaded, we will assign now the properties to the already loaded assets/assemblies
             if (ContainsAssets)
                 ResourceLocator = await EmbeddedModAssetsLocator.CreateAsync(Config.modId, Config.assets);
             if (ContainsAssemblies)
                 LoadedAssemblies = _loadedAssemblies;
-            
+
             // run startup script and methods
             if (_startup)
-                await _startup.StartAsync(mod);
-            
-            await UniModUtility.RunStartupMethodsAsync(LoadedAssemblies, mod);
-            
+                _startup.StartAsync(mod);
+
+            await UniModUtility.RunInitializeMethodsAsync(LoadedAssemblies, mod);
+
             IsLoaded = true;
         }
 
@@ -99,7 +99,7 @@ namespace Katas.UniMod
             foreach (EmbeddedModAssemblies configAssemblies in config.assemblies)
             {
                 RuntimePlatform currentPlatform = Application.platform;
-                
+
 #if UNITY_EDITOR
                 currentPlatform = currentPlatform switch
                 {
@@ -109,25 +109,25 @@ namespace Katas.UniMod
                     _ => currentPlatform
                 };
 #endif
-                
+
                 if (configAssemblies.platform == currentPlatform)
                 {
                     var results = new List<Assembly>(configAssemblies.names.Count);
-                    
+
                     // get all the domain loaded assemblies and register them by name
                     using var _ = DictionaryPool<string, Assembly>.Get(out var assembliesByName);
                     foreach (Assembly assembly in DomainAssemblies.Assemblies)
                         assembliesByName[assembly.GetName().Name] = assembly;
-                    
+
                     // find the assemblies in the domain corresponding to the names in the config
                     foreach (string assemblyName in configAssemblies.names)
                         if (assembliesByName.TryGetValue(assemblyName, out Assembly assembly))
                             results.Add(assembly);
-                    
+
                     return results;
                 }
             }
-            
+
             return new List<Assembly>(0);
         }
     }
