@@ -20,11 +20,12 @@ namespace Katas.UniMod
         public ModInfo Info { get; }
         public string Source { get; }
         public bool IsLoaded { get; private set; }
+        public bool IsDisabled { get; private set; }
         public bool ContainsAssets { get; }
         public bool ContainsAssemblies { get; }
         public IResourceLocator ResourceLocator { get; private set; }
         public IReadOnlyList<Assembly> LoadedAssemblies { get; }
-        
+
         private readonly string _assembliesFolder;
         private readonly string _catalogPath;
         private readonly List<Assembly> _loadedAssemblies;
@@ -38,7 +39,7 @@ namespace Katas.UniMod
             _assembliesFolder = Path.Combine(modFolder, UniModRuntime.AssembliesFolder);
             _catalogPath = Path.Combine(modFolder, UniModRuntime.AssetsFolder, UniModRuntime.AddressablesCatalogFileName);
             _loadedAssemblies = new List<Assembly>();
-            
+
             Info = info;
             Source = source;
             ContainsAssets = File.Exists(_catalogPath);
@@ -54,7 +55,7 @@ namespace Katas.UniMod
                 await _loadOperation.Task;
                 return;
             }
-            
+
             _loadOperation = new UniTaskCompletionSource();
 
             try
@@ -73,7 +74,7 @@ namespace Katas.UniMod
         {
             if (_thumbnailOperation is not null)
                 return await _thumbnailOperation.Task;
-            
+
             _thumbnailOperation = new UniTaskCompletionSource<Sprite>();
 
             try
@@ -93,17 +94,17 @@ namespace Katas.UniMod
         {
             if (IsLoaded)
                 return;
-            
+
             if (ContainsAssemblies)
                 await UniModUtility.LoadAssembliesAsync(_assembliesFolder, _loadedAssemblies);
-            
+
             if (ContainsAssets)
                 ResourceLocator = await Addressables.LoadContentCatalogAsync(_catalogPath, true);
 
             // run startup script and methods
             await UniModUtility.RunModStartupScriptAsync(mod);
             await UniModUtility.RunStartupMethodsAsync(LoadedAssemblies, mod);
-            
+
             IsLoaded = true;
         }
 
@@ -112,7 +113,7 @@ namespace Katas.UniMod
             string path = Path.Combine(ModFolder, UniModRuntime.ThumbnailFile);
             if (!File.Exists(path))
                 return null;
-            
+
             using UnityWebRequest request = UnityWebRequestTexture.GetTexture(path);
             await request.SendWebRequest();
 
@@ -121,7 +122,7 @@ namespace Katas.UniMod
 
             Texture2D texture = DownloadHandlerTexture.GetContent(request);
             texture.filterMode = FilterMode.Bilinear;
-            
+
             return UniModUtility.CreateSpriteFromTexture(texture);
         }
     }
