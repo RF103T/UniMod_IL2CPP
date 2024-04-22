@@ -18,24 +18,25 @@ namespace Katas.UniMod
     {
         public string LocatorId { get; }
         public IEnumerable<object> Keys { get; }
-        
-        private readonly Dictionary<object, List<IResourceLocation>> _locationsByKey;
+        public Dictionary<object, IList<IResourceLocation>> Locations => _locationsByKey;
+
+        private readonly Dictionary<object, IList<IResourceLocation>> _locationsByKey;
         private readonly List<object> _keys;
         private readonly Dictionary<(object Key, Type Type), IList<IResourceLocation>> _locateCache;
-        
+
         public static async UniTask<EmbeddedModAssetsLocator> CreateAsync(string id, IEnumerable<EmbeddedModAsset> assets)
         {
             var locator = new EmbeddedModAssetsLocator(id);
             await locator.InitializeAsync(assets);
             return locator;
         }
-        
+
         private EmbeddedModAssetsLocator(string id)
         {
-            _locationsByKey = new Dictionary<object, List<IResourceLocation>>();
+            _locationsByKey = new Dictionary<object, IList<IResourceLocation>>();
             _keys = new List<object>();
             _locateCache = new Dictionary<(object, Type), IList<IResourceLocation>>();
-            
+
             LocatorId = id;
             Keys = _keys.AsReadOnly();
         }
@@ -46,30 +47,31 @@ namespace Katas.UniMod
             var cacheKey = (key, type);
             if (_locateCache.TryGetValue(cacheKey, out locations))
                 return true;
-            
+
             // try to get the locations list for the given key
-            if (!_locationsByKey.TryGetValue(key, out List<IResourceLocation> locationsList))
+            if (!_locationsByKey.TryGetValue(key, out IList<IResourceLocation> locationsList))
                 return false;
+            var _locationsList = locationsList as List<IResourceLocation>;
 
             // filter the returned list by the resource type
             if (type is not null)
-                locationsList = locationsList.Where(location => location.ResourceType == type).ToList();
-            
-            if (locationsList.Count == 0)
+                _locationsList = locationsList.Where(location => location.ResourceType == type).ToList();
+
+            if (_locationsList.Count == 0)
                 return false;
-            
+
             // cache and return the results
-            locations = locationsList.AsReadOnly();
+            locations = _locationsList.AsReadOnly();
             _locateCache.Add(cacheKey, locations);
-            
+
             return true;
         }
-        
+
         private async UniTask InitializeAsync(IEnumerable<EmbeddedModAsset> assets)
         {
             // load all the asset locations from Addressables and map them to their keys. this will also load all the dependency locations
             await UniTask.WhenAll(assets.Select(LoadAssetAsync));
-            
+
             // add all keys
             _keys.AddRange(_locationsByKey.Keys);
         }
@@ -79,7 +81,7 @@ namespace Katas.UniMod
             AsyncOperationHandle<IList<IResourceLocation>> handle;
             using var _ = ListPool<object>.Get(out var keys);
             keys.Add(asset.guid);
-            
+
             try
             {
                 handle = Addressables.LoadResourceLocationsAsync(keys as IEnumerable, Addressables.MergeMode.Union);
@@ -89,31 +91,31 @@ namespace Katas.UniMod
             {
                 return;
             }
-            
+
             if (!handle.IsValid())
                 return;
-            
+
             // fetch the loaded location
             IResourceLocation location = handle.Result?.FirstOrDefault();
             Addressables.Release(handle);
             if (location is null)
                 return;
-            
+
             // map to the guid, primary key and labels
             AddLocation(asset.guid, location);
             AddLocation(location.PrimaryKey, location);
             foreach (string label in asset.labels)
                 AddLocation(label, location);
-            
+
             // recursively map all the dependencies to their primary key
             AddDependencies(location);
         }
 
         private void AddLocation(object key, IResourceLocation location)
         {
-            if (!_locationsByKey.TryGetValue(key, out List<IResourceLocation> locations))
+            if (!_locationsByKey.TryGetValue(key, out IList<IResourceLocation> locations))
                 _locationsByKey.Add(key, locations = new List<IResourceLocation>());
-            
+
             locations.Add(location);
         }
 
