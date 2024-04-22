@@ -76,22 +76,26 @@ namespace Katas.UniMod
             return UniTask.FromResult(false);
         }
 
-        public IReadOnlyList<string> GetConflictAssetsByModId(string modId)
+        public bool TryGetConflictAssetsByModId(string modId, out IReadOnlyList<string> results)
         {
+            results = null;
             if (_modConflictResMap.TryGetValue(modId, out var conflictResKeys))
             {
-                return conflictResKeys.AsReadOnly();
+                results = conflictResKeys.AsReadOnly();
+                return true;
             }
-            return null;
+            return false;
         }
 
-        public IReadOnlyList<string> GetConflictModsByAddressablesKey(string addressablesKey)
+        public bool TryGetConflictModsByAddressablesKey(string addressablesKey, out IReadOnlyList<string> results)
         {
+            results = null;
             if (_resConflictModMap.TryGetValue(addressablesKey, out var conflictModIds))
             {
-                return conflictModIds.AsReadOnly();
+                results = conflictModIds.AsReadOnly();
+                return true;
             }
-            return null;
+            return false;
         }
 
         private async UniTask<bool> TryLoadModAsync(Mod mod)

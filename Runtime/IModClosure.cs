@@ -18,7 +18,7 @@ namespace Katas.UniMod
         UniTask<bool> TryLoadModsAsync(IEnumerable<string> ids);
         UniTask<bool> TryLoadModAsync(string id);
 
-        IReadOnlyList<string> GetConflictAssetsByModId(string modId);
-        IReadOnlyList<string> GetConflictModsByAddressablesKey(string addressablesKey);
+        bool TryGetConflictAssetsByModId(string modId, out IReadOnlyList<string> results);
+        bool TryGetConflictModsByAddressablesKey(string addressablesKey, out IReadOnlyList<string> results);
     }
 }

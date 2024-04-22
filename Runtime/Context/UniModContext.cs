@@ -128,10 +128,10 @@ namespace Katas.UniMod
             => _closure.TryLoadModsAsync(ids);
         public UniTask<bool> TryLoadModAsync(string id)
             => _closure.TryLoadModAsync(id);
-        public IReadOnlyList<string> GetConflictAssetsByModId(string modId)
-            => _closure.GetConflictAssetsByModId(modId);
-        public IReadOnlyList<string> GetConflictModsByAddressablesKey(string addressablesKey)
-            => _closure.GetConflictModsByAddressablesKey(addressablesKey);
+        public bool TryGetConflictAssetsByModId(string modId, out IReadOnlyList<string> results)
+            => _closure.TryGetConflictAssetsByModId(modId, out results);
+        public bool TryGetConflictModsByAddressablesKey(string addressablesKey, out IReadOnlyList<string> results)
+            => _closure.TryGetConflictModsByAddressablesKey(addressablesKey, out results);
 
         // local mod installer
         public string InstallationFolder
