@@ -15,7 +15,7 @@ namespace Katas.UniMod
         private readonly ModClosure _closure;
         private readonly ModSourceGroup _sources;
         private readonly List<IModLoader> _loaders;
-        
+
         private UniTaskCompletionSource _refreshingOperation;
 
         public UniModContext(IModHost host, ILocalModInstaller installer)
@@ -23,17 +23,17 @@ namespace Katas.UniMod
 
         public UniModContext(IModHost host, ILocalModInstaller installer, params IModSource[] sources)
             : this(host, installer, sources as IEnumerable<IModSource>) { }
-        
+
         public UniModContext(IModHost host, ILocalModInstaller installer, IEnumerable<IModSource> sources)
         {
             _host = host;
             _installer = installer;
-            
+
             // we use this specific implementation of mod closure because it allows us to rebuild the closure when refreshing the context
             _closure = new ModClosure(_host);
             // we use this specific implementation of mod source because it allows us to group multiple sources and treat them as one
             _sources = new ModSourceGroup(sources);
-            
+
             _loaders = new List<IModLoader>();
         }
 
@@ -45,7 +45,7 @@ namespace Katas.UniMod
                 await _refreshingOperation.Task;
                 return;
             }
-            
+
             UniTaskCompletionSource operation = _refreshingOperation = new UniTaskCompletionSource();
 
             try
@@ -75,11 +75,11 @@ namespace Katas.UniMod
                 operation.TrySetException(exception);
                 throw;
             }
-            
+
             _refreshingOperation = null;
             operation.TrySetResult();
         }
-        
+
         private async UniTask RefreshLocalInstallations()
         {
             try
@@ -91,7 +91,7 @@ namespace Katas.UniMod
                 throw new Exception("[UniModContext] something went wrong while trying to refresh the local installation folder", exception);
             }
         }
-        
+
         private async UniTask FetchFromAllSources()
         {
             try
@@ -104,7 +104,7 @@ namespace Katas.UniMod
             }
         }
 
-#region WRAPPERS
+        #region WRAPPERS
         // mod host
         public string Id
             => _host.Id;
@@ -114,7 +114,7 @@ namespace Katas.UniMod
             => _host.GetModIssues(mod);
         public bool IsModSupported(IMod mod, out ModIssues issues)
             => _host.IsModSupported(mod, out issues);
-        
+
         // mod closure
         public IReadOnlyCollection<IMod> Mods
             => _closure.Mods;
@@ -128,6 +128,10 @@ namespace Katas.UniMod
             => _closure.TryLoadModsAsync(ids);
         public UniTask<bool> TryLoadModAsync(string id)
             => _closure.TryLoadModAsync(id);
+        public IReadOnlyList<string> GetConflictAssetsByModId(string modId)
+            => _closure.GetConflictAssetsByModId(modId);
+        public IReadOnlyList<string> GetConflictModsByAddressablesKey(string addressablesKey)
+            => _closure.GetConflictModsByAddressablesKey(addressablesKey);
 
         // local mod installer
         public string InstallationFolder
@@ -144,7 +148,7 @@ namespace Katas.UniMod
             => _installer.InstallModAsync(modFilePath, deleteModFileAfter);
         public UniTask InstallModAsync(byte[] modBuffer)
             => _installer.InstallModAsync(modBuffer);
-        
+
         // mod source group
         public IReadOnlyList<IModSource> Sources
             => _sources.Sources;
@@ -164,6 +168,6 @@ namespace Katas.UniMod
             => _sources.RemoveSources(sources);
         public void ClearSources()
             => _sources.ClearSources();
-#endregion
+        #endregion
     }
 }
