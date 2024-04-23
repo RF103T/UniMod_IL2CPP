@@ -22,49 +22,54 @@ namespace Katas.UniMod
         bool ContainsAssets { get; }
         bool ContainsAssemblies { get; }
         ModTargetInfo Target { get; }
-        
+
         /// <summary>
         /// Issues that can cause the mod to not load properly.
         /// </summary>
         ModIssues Issues { get; }
-        
+
         /// <summary>
         /// Mod's direct dependencies (doesn't include missing dependencies for obvious reasons).
         /// </summary>
         IReadOnlyCollection<IMod> Dependencies { get; }
-        
+
         /// <summary>
         /// Mod's missing direct dependencies.
         /// </summary>
         IReadOnlyCollection<ModReference> MissingDependencies { get; }
-        
+
         /// <summary>
         /// Whether the mod is currently loaded or not.
         /// </summary>
         bool IsLoaded { get; }
-        
+
+        /// <summary>
+        /// Whether the mod is currently active.
+        /// </summary>
+        bool IsActive { get; set; }
+
         /// <summary>
         /// Resource locator for all the mod loaded assets (will have no key if the mod is not loaded).
         /// </summary>
         IResourceLocator ResourceLocator { get; }
-        
+
         /// <summary>
         /// Contains all the assemblies loaded by the mod (will be empty if the mod is not loaded).
         /// </summary>
         IReadOnlyList<Assembly> LoadedAssemblies { get; }
-        
+
         /// <summary>
         /// Loads the mod. This method will not perform any checks regarding issues or missing dependencies, so you should call it only if
         /// you want to try a forced load. To properly load a mod with automatic dependency loading and issues check use the mod context or
         /// a mod closure implementation.
         /// </summary>
         UniTask LoadAsync();
-        
+
         /// <summary>
         /// Gets the mod's thumbnail asynchronously.
         /// </summary>
         UniTask<Sprite> GetThumbnailAsync();
-        
+
         /// <summary>
         /// Populates the results collection with the dependencies causing the specified issues. Issues can include multiple flags.
         /// Not all issues are related with dependencies, like the ones regarding host support, those will never produce results.

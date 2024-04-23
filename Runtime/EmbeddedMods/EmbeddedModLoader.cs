@@ -18,7 +18,11 @@ namespace Katas.UniMod
         public bool ContainsAssets { get; }
         public bool ContainsAssemblies { get; }
         public bool IsLoaded { get; private set; }
-        public bool IsDisabled => false;
+        public bool IsActive
+        {
+            get => true;
+            set { }
+        }
         public IResourceLocator ResourceLocator { get; private set; }
         public IReadOnlyList<Assembly> LoadedAssemblies { get; private set; }
 

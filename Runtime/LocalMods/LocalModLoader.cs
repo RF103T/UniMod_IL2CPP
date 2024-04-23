@@ -20,7 +20,6 @@ namespace Katas.UniMod
         public ModInfo Info { get; }
         public string Source { get; }
         public bool IsLoaded { get; private set; }
-        public bool IsDisabled { get; private set; }
         public bool ContainsAssets { get; }
         public bool ContainsAssemblies { get; }
         public IResourceLocator ResourceLocator { get; private set; }
@@ -32,6 +31,13 @@ namespace Katas.UniMod
 
         private UniTaskCompletionSource _loadOperation;
         private UniTaskCompletionSource<Sprite> _thumbnailOperation;
+
+        private bool _isActive;
+        public bool IsActive
+        {
+            get => _isActive;
+            set => RefreshActiveState(value);
+        }
 
         public LocalModLoader(string modFolder, ModInfo info, string source = LocalModSource.SourceLabel)
         {
@@ -46,6 +52,8 @@ namespace Katas.UniMod
             ContainsAssemblies = Directory.Exists(_assembliesFolder);
             ResourceLocator = EmptyLocator.Instance;
             LoadedAssemblies = _loadedAssemblies.AsReadOnly();
+
+            RefreshActiveState(true);
         }
 
         public async UniTask LoadAsync(IMod mod)
@@ -124,6 +132,30 @@ namespace Katas.UniMod
             texture.filterMode = FilterMode.Bilinear;
 
             return UniModUtility.CreateSpriteFromTexture(texture);
+        }
+
+        private void RefreshActiveState(bool isActive)
+        {
+            // disabled file
+            string blockPath = Path.Combine(ModFolder, UniModRuntime.BlockFile);
+            var blockFileInfo = new FileInfo(blockPath);
+
+            // if the mod is not loaded, try to find block file to determine active status
+            if (!IsLoaded)
+            {
+                _isActive = !blockFileInfo.Exists;
+                return;
+            }
+
+            if (isActive == _isActive)
+                return;
+
+            if (isActive && blockFileInfo.Exists)
+                blockFileInfo.Delete();
+            if (!isActive && !blockFileInfo.Exists)
+                blockFileInfo.Create().Dispose();
+
+            _isActive = isActive;
         }
     }
 }
