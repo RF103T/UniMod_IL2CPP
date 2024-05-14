@@ -24,7 +24,7 @@ namespace Katas.UniMod
         public bool ContainsAssemblies { get; }
         public IResourceLocator ResourceLocator { get; private set; }
         public IReadOnlyList<Assembly> LoadedAssemblies { get; }
-        
+
         private readonly string _assembliesFolder;
         private readonly string _catalogPath;
         private readonly List<Assembly> _loadedAssemblies;
@@ -32,19 +32,28 @@ namespace Katas.UniMod
         private UniTaskCompletionSource _loadOperation;
         private UniTaskCompletionSource<Sprite> _thumbnailOperation;
 
+        private bool _isActive;
+        public bool IsActive
+        {
+            get => _isActive;
+            set => RefreshActiveState(value);
+        }
+
         public LocalModLoader(string modFolder, ModInfo info, string source = LocalModSource.SourceLabel)
         {
             ModFolder = modFolder;
             _assembliesFolder = Path.Combine(modFolder, UniModRuntime.AssembliesFolder);
             _catalogPath = Path.Combine(modFolder, UniModRuntime.AssetsFolder, UniModRuntime.AddressablesCatalogFileName);
             _loadedAssemblies = new List<Assembly>();
-            
+
             Info = info;
             Source = source;
             ContainsAssets = File.Exists(_catalogPath);
             ContainsAssemblies = Directory.Exists(_assembliesFolder);
             ResourceLocator = EmptyLocator.Instance;
             LoadedAssemblies = _loadedAssemblies.AsReadOnly();
+
+            RefreshActiveState(true);
         }
 
         public async UniTask LoadAsync(IMod mod)
@@ -54,7 +63,7 @@ namespace Katas.UniMod
                 await _loadOperation.Task;
                 return;
             }
-            
+
             _loadOperation = new UniTaskCompletionSource();
 
             try
@@ -73,7 +82,7 @@ namespace Katas.UniMod
         {
             if (_thumbnailOperation is not null)
                 return await _thumbnailOperation.Task;
-            
+
             _thumbnailOperation = new UniTaskCompletionSource<Sprite>();
 
             try
@@ -93,17 +102,17 @@ namespace Katas.UniMod
         {
             if (IsLoaded)
                 return;
-            
+
             if (ContainsAssemblies)
                 await UniModUtility.LoadAssembliesAsync(_assembliesFolder, _loadedAssemblies);
-            
+
             if (ContainsAssets)
                 ResourceLocator = await Addressables.LoadContentCatalogAsync(_catalogPath, true);
 
             // run startup script and methods
             await UniModUtility.RunModStartupScriptAsync(mod);
             await UniModUtility.RunStartupMethodsAsync(LoadedAssemblies, mod);
-            
+
             IsLoaded = true;
         }
 
@@ -112,7 +121,7 @@ namespace Katas.UniMod
             string path = Path.Combine(ModFolder, UniModRuntime.ThumbnailFile);
             if (!File.Exists(path))
                 return null;
-            
+
             using UnityWebRequest request = UnityWebRequestTexture.GetTexture(path);
             await request.SendWebRequest();
 
@@ -121,8 +130,32 @@ namespace Katas.UniMod
 
             Texture2D texture = DownloadHandlerTexture.GetContent(request);
             texture.filterMode = FilterMode.Bilinear;
-            
+
             return UniModUtility.CreateSpriteFromTexture(texture);
+        }
+
+        private void RefreshActiveState(bool isActive)
+        {
+            // disabled file
+            string blockPath = Path.Combine(ModFolder, UniModRuntime.BlockFile);
+            var blockFileInfo = new FileInfo(blockPath);
+
+            // if the mod is not loaded, try to find block file to determine active status
+            if (!IsLoaded)
+            {
+                _isActive = !blockFileInfo.Exists;
+                return;
+            }
+
+            if (isActive == _isActive)
+                return;
+
+            if (isActive && blockFileInfo.Exists)
+                blockFileInfo.Delete();
+            if (!isActive && !blockFileInfo.Exists)
+                blockFileInfo.Create().Dispose();
+
+            _isActive = isActive;
         }
     }
 }

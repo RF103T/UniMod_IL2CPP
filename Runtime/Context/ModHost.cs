@@ -11,21 +11,21 @@ namespace Katas.UniMod
     {
         public string Id { get; }
         public string Version { get; }
-        
+
         public bool SupportStandaloneMods = true;
         public bool SupportModsContainingAssemblies = true;
         public bool SupportModsCreatedForOtherHosts = false;
-        
+
         public ModHost(string hostId, string hostVersion)
         {
             Id = hostId;
             Version = hostVersion;
         }
-        
+
         public virtual ModIssues GetModIssues(IMod mod)
         {
             ModIssues issues = 0;
-            
+
             bool isHostSupported;
             bool isHostVersionSupported;
 
@@ -33,7 +33,7 @@ namespace Katas.UniMod
             if (mod.Target.HostId == Id)
             {
                 isHostSupported = true;
-                isHostVersionSupported = !IsHostVersionSupported(mod.Target.HostVersion);
+                isHostVersionSupported = IsHostVersionSupported(mod.Target.HostVersion);
             }
             // if the mod is standalone (does not target a specific host), then set it supported depending on the config
             else if (string.IsNullOrEmpty(mod.Target.HostId))
@@ -47,7 +47,7 @@ namespace Katas.UniMod
                 isHostSupported = SupportModsCreatedForOtherHosts;
                 isHostVersionSupported = true; // skip host version checking
             }
-            
+
             // register the issues
             if (Application.unityVersion != mod.Target.UnityVersion)
                 issues |= ModIssues.UnsupportedUnityVersion;
@@ -61,16 +61,16 @@ namespace Katas.UniMod
                 issues |= ModIssues.UnsupportedHostVersion;
             if (!SupportModsContainingAssemblies && mod.ContainsAssemblies)
                 issues |= ModIssues.UnsupportedContent;
-            
+
             return issues;
         }
-        
+
         public virtual bool IsModSupported(IMod mod, out ModIssues issues)
         {
             issues = GetModIssues(mod);
             return issues == 0;
         }
-        
+
         /// <summary>
         /// Whether or not the given host version is supported by the this host version. Override this if you want to implement
         /// your own versioning rules for your project. Uses semantic versioning rules by default.

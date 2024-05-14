@@ -14,7 +14,7 @@ namespace Katas.UniMod
     public sealed class Mod : IMod
     {
         public readonly IModLoader Loader;
-        
+
         public string Id => Loader.Info.Id;
         public string Version => Loader.Info.Version;
         public string DisplayName => Loader.Info.DisplayName;
@@ -23,45 +23,50 @@ namespace Katas.UniMod
         public bool ContainsAssets => Loader.ContainsAssets;
         public bool ContainsAssemblies => Loader.ContainsAssemblies;
         public ModTargetInfo Target => Loader.Info.Target;
-        
+
         public ModIssues Issues { get; private set; }
         public IReadOnlyCollection<Mod> Dependencies { get; }
         public IReadOnlyCollection<ModReference> MissingDependencies => _missingDependencies;
 
         public bool IsLoaded => Loader.IsLoaded;
+        public bool IsActive
+        {
+            get => Loader.IsActive;
+            set => Loader.IsActive = value;
+        }
         public IResourceLocator ResourceLocator => Loader.ResourceLocator;
         public IReadOnlyList<Assembly> LoadedAssemblies => Loader.LoadedAssemblies;
 
         private readonly List<Mod> _dependencies;
         private readonly HashSet<ModReference> _missingDependencies;
         private readonly Dictionary<ModIssues, List<Mod>> _modsByIssue;
-        
+
         private bool _resolved;
-        
+
         public static Dictionary<string, Mod> ResolveClosure(IEnumerable<IModLoader> loaders, IModHost host)
         {
             var mods = new Dictionary<string, Mod>();
-            
+
             // create the Mod instances from the loaders and register them by ID
             foreach (IModLoader loader in loaders)
                 if (loader != null)
                     mods[loader.Info.Id] = new Mod(loader);
-            
+
             // resolve all created mod instances
             foreach (Mod mod in mods.Values)
                 mod.Resolve(mods, host);
-            
+
             return mods;
         }
 
         private Mod(IModLoader loader)
         {
             Loader = loader ?? throw new NullReferenceException("Null mod loader");
-            
+
             _dependencies = new List<Mod>(Loader.Info.Dependencies?.Count ?? 0);
             _missingDependencies = new HashSet<ModReference>();
             _modsByIssue = new Dictionary<ModIssues, List<Mod>>();
-            
+
             Dependencies = _dependencies.AsReadOnly();
         }
 
@@ -91,22 +96,22 @@ namespace Katas.UniMod
         {
             if (_resolved)
                 return;
-            
+
             _resolved = true;
-            
+
             // get any possible host support issues with the mod
             Issues = host.GetModIssues(this);
-            
+
             // if the mod contains assemblies, check if we are currently using the Mono scripting backend
             if (!Issues.HasFlag(ModIssues.UnsupportedContent) && Loader.ContainsAssemblies && !UniModUtility.IsModScriptingSupported)
             {
                 Debug.LogWarning($"[UniMod] the mod {Id} contains assemblies but the project is using the IL2CPP backend. Please switch to Mono if you want scripting support for mods");
                 Issues |= ModIssues.UnsupportedContent;
             }
-            
+
             if (Loader.Info.Dependencies is null)
                 return;
-            
+
             // resolve all direct dependencies, this will solve the entire graph recursively
             foreach ((string id, string version) in Loader.Info.Dependencies)
             {
@@ -114,20 +119,20 @@ namespace Katas.UniMod
                 {
                     // mark as missing dependency
                     Issues |= ModIssues.MissingDependencies;
-                    _missingDependencies.Add(new ModReference() { id = id, version = version});
+                    _missingDependencies.Add(new ModReference() { id = id, version = version });
                     continue;
                 }
 
                 _dependencies.Add(dependency);
                 dependency.Resolve(mods, host);
-                
+
                 // check version support
                 if (!UniModUtility.IsSemanticVersionSupportedByCurrent(version, dependency.Version))
                 {
                     Issues |= ModIssues.UnsupportedDependenciesVersion;
                     LinkModWithIssue(dependency, ModIssues.UnsupportedDependenciesVersion);
                 }
-                
+
                 // check any other issues
                 if (dependency.Issues != 0)
                 {
@@ -146,46 +151,47 @@ namespace Katas.UniMod
             foreach (Mod dependency in _dependencies)
                 if (HasCyclicDependencies(dependency))
                     return true;
-            
+
             return false;
         }
-        
+
         private bool HasCyclicDependencies(Mod dependency)
         {
             // if the dependency that we are checking is this one or has cyclic dependencies then return true
             if (dependency == this || (dependency.Issues & ModIssues.CyclicDependencies) == ModIssues.CyclicDependencies)
                 return true;
-            
+
             // recursively check the transient dependencies for cyclic dependencies
             foreach (Mod transientDependency in dependency.Dependencies)
                 if (HasCyclicDependencies(transientDependency))
                     return true;
-            
+
             return false;
         }
-        
+
         private void LinkModWithIssue(Mod mod, ModIssues issue)
         {
             if (!_modsByIssue.TryGetValue(issue, out List<Mod> mods))
                 _modsByIssue[issue] = mods = new List<Mod>();
-            
+
             mods.Add(mod);
         }
 
-#region IMod Overrides
+        #region IMod Overrides
+
         IReadOnlyCollection<IMod> IMod.Dependencies => Dependencies;
-        
+
         public void GetDependenciesRelatedToIssues(ModIssues issues, ICollection<IMod> results)
         {
             if (results is null)
                 return;
-            
+
             using var _ = ListPool<Mod>.Get(out var modResults);
             GetDependenciesRelatedToIssues(issues, modResults);
-            
-            foreach(Mod mod in modResults)
+
+            foreach (Mod mod in modResults)
                 results.Add(mod);
         }
-#endregion
+        #endregion
     }
 }

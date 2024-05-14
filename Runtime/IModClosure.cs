@@ -10,12 +10,15 @@ namespace Katas.UniMod
     public interface IModClosure
     {
         IReadOnlyCollection<IMod> Mods { get; }
-        
+
         IMod GetMod(string id);
-        
+
         UniTask<bool> TryLoadAllModsAsync();
         UniTask<bool> TryLoadModsAsync(params string[] ids);
         UniTask<bool> TryLoadModsAsync(IEnumerable<string> ids);
         UniTask<bool> TryLoadModAsync(string id);
+
+        bool TryGetConflictAssetsByModId(string modId, out IReadOnlyList<string> results);
+        bool TryGetConflictModsByAddressablesKey(string addressablesKey, out IReadOnlyList<string> results);
     }
 }
