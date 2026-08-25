@@ -1,5 +1,18 @@
 # UniMod
 
+> [!NOTE]
+> ### Original Repository
+>
+> This project was originally forked from **[katas94/UniMod](https://github.com/katas94/UniMod)**.
+>
+> Due to a repository rename, the GitHub fork relationship was lost and this repository is no longer linked to its upstream source.
+>
+> A huge thank you to **katas94** for creating the original project and for all their contributions — this work would not exist without them.
+>
+> #### 对不太熟悉该仓库的中文用户
+> 为了防止之后再次出现误会，在主分支新增了新的README：
+> **📢[常见问题解答](https://github.com/RF103T/UniMod_IL2CPP/blob/main/README_CN.md)**
+
 A Unity package that adds modding support to your project.
 * **No content restrictions**. Mods can contain **assets** and **C# scripts**. *Scripts can be disabled*
 * **Easy mod distribution and installation**. Mods are built into a single `.umod` archive file.
